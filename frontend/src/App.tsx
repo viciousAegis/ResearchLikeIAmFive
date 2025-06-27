@@ -3,10 +3,19 @@ import axios from 'axios';
 import SummaryDisplay from './SummaryDisplay';
 import { APIResponse, ParsedAPIResponse, PaperSummary } from './types';
 
-// Get the API URL from environment variables.
-// In development, this will be http://localhost:8000
-// In production, we'll set this on Render.
+// Get the API URL from environment variables with validation
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+// Basic URL validation for client-side security
+const validateArxivUrl = (url: string): boolean => {
+  const arxivPattern = /^https?:\/\/(www\.)?arxiv\.org\/(abs|pdf)\/\d{4}\.\d{4,5}(v\d+)?$/;
+  return arxivPattern.test(url.trim());
+};
+
+// Sanitize input to prevent XSS
+const sanitizeInput = (input: string): string => {
+  return input.trim().replace(/[<>\"']/g, '');
+};
 
 function App() {
   const [url, setUrl] = useState<string>('');
@@ -33,32 +42,79 @@ function App() {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setHasInteracted(true);
+    
+    // Client-side validation
+    const sanitizedUrl = sanitizeInput(url);
+    if (!sanitizedUrl) {
+      setError('Please enter a valid arXiv URL');
+      return;
+    }
+    
+    if (!validateArxivUrl(sanitizedUrl)) {
+      setError('Please enter a valid arXiv URL (e.g., https://arxiv.org/abs/1234.5678)');
+      return;
+    }
+    
     setIsLoading(true);
     setError('');
     setSummaryData(null);
 
     try {
-      const response = await axios.post<APIResponse>(`${API_URL}/summarize`, { 
-        url, 
-        explanation_style: explanationStyle 
-      });
+      // Configure axios with security settings
+      const response = await axios.post<APIResponse>(
+        `${API_URL}/summarize`, 
+        { 
+          url: sanitizedUrl, 
+          explanation_style: explanationStyle 
+        },
+        {
+          timeout: 60000, // 60 second timeout
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          // Prevent CSRF
+          withCredentials: false,
+        }
+      );
       
       if (response.data && response.data.summary) {
-        // The Gemini response is a stringified JSON, so we parse it
-        const parsedSummary: PaperSummary = JSON.parse(response.data.summary);
-        const parsedData: ParsedAPIResponse = { 
-          summary: parsedSummary, 
-          title: response.data.title,
-          figures: response.data.figures || []
-        };
-        setSummaryData(parsedData);
+        try {
+          // Secure JSON parsing with validation
+          const parsedSummary: PaperSummary = JSON.parse(response.data.summary);
+          
+          // Validate response structure
+          if (!parsedSummary.gist || !parsedSummary.analogy || !parsedSummary.key_findings) {
+            throw new Error('Invalid response structure');
+          }
+          
+          const parsedData: ParsedAPIResponse = { 
+            summary: parsedSummary, 
+            title: response.data.title || 'Unknown Title',
+            figures: response.data.figures || []
+          };
+          setSummaryData(parsedData);
+        } catch (parseError) {
+          console.error('JSON parsing error:', parseError);
+          setError('Invalid response format from server');
+        }
       } else {
-        throw new Error('Invalid response structure from server.');
+        throw new Error('Empty response from server');
       }
     } catch (err: any) {
-      const errorMessage = err.response?.data?.detail || err.message || 'An unknown error occurred.';
-      setError(`Error: ${errorMessage}`);
-      console.error(err);
+      console.error('Request error:', err);
+      
+      if (err.code === 'ECONNABORTED') {
+        setError('Request timed out. Please try again.');
+      } else if (err.response?.status === 429) {
+        setError('Too many requests. Please wait a moment and try again.');
+      } else if (err.response?.status === 400) {
+        setError(err.response?.data?.detail || 'Invalid request. Please check the arXiv URL.');
+      } else if (err.response?.status >= 500) {
+        setError('Server error. Please try again later.');
+      } else {
+        const errorMessage = err.response?.data?.detail || 'An unexpected error occurred. Please try again.';
+        setError(errorMessage);
+      }
     } finally {
       setIsLoading(false);
     }

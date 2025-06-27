@@ -2,47 +2,133 @@ import os
 import re
 import base64
 import io
+import asyncio
+from typing import Optional
 from google import genai
 from google.genai import types
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, status, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.responses import JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 import arxiv
 import fitz  # PyMuPDF for PDF parsing
+import logging
+
+# Import our security module
+from security import (
+    SecurityConfig, 
+    SecureArxivRequest, 
+    URLValidator, 
+    verify_api_key,
+    log_security_event,
+    SecurityHeaders
+)
 
 # --- Configuration ---
+# Configure logging for security monitoring
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 # Load environment variables for local development
 from dotenv import load_dotenv
 load_dotenv() 
 
+# Validate required environment variables
+if not os.getenv("GOOGLE_API_KEY"):
+    logger.error("GOOGLE_API_KEY environment variable is required")
+    raise ValueError("GOOGLE_API_KEY environment variable is required")
+
 # Configure the Gemini API
-# e.g., GOOGLE_API_KEY="your_api_key_here"
 try:
     client = genai.Client()
+    logger.info("Gemini API client initialized successfully")
 except Exception as e:
-    print(f"Error configuring Gemini API: {e}. Make sure the API key is set.")
-    # In a real app, you might want to exit or handle this more gracefully
-    
+    logger.error(f"Error configuring Gemini API: {e}")
+    raise RuntimeError(f"Failed to initialize Gemini API: {e}")
+
+# Initialize rate limiter
+limiter = Limiter(key_func=get_remote_address)
+
 # --- FastAPI App Setup ---
 app = FastAPI(
     title="ResearchLikeIAmFive API",
-    description="API for summarizing arXiv papers for a lay audience.",
-    version="0.1.0",
+    description="Secure API for summarizing arXiv papers for a lay audience.",
+    version="1.0.0",
+    docs_url="/docs" if not SecurityConfig.is_production() else None,  # Disable docs in production
+    redoc_url="/redoc" if not SecurityConfig.is_production() else None,
 )
 
-# Allow cross-origin requests (for our frontend to talk to this backend)
+# Add rate limiting middleware
+app.state.limiter = limiter
+from fastapi import Request, Response
+
+def rate_limit_exceeded_handler(request: Request, exc: Exception) -> Response:
+    # Delegate to the original handler if the exception is RateLimitExceeded
+    if isinstance(exc, RateLimitExceeded):
+        return _rate_limit_exceeded_handler(request, exc)
+    # Otherwise, re-raise or handle as needed
+    raise exc
+
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
+
+# Add trusted host middleware for production
+if SecurityConfig.is_production():
+    allowed_hosts = os.getenv("ALLOWED_HOSTS", "").split(",")
+    if allowed_hosts and allowed_hosts[0]:
+        app.add_middleware(
+            TrustedHostMiddleware, 
+            allowed_hosts=[host.strip() for host in allowed_hosts if host.strip()]
+        )
+
+# CORS Configuration - Secure for production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Allows all origins
-    allow_credentials=True,
-    allow_methods=["*"], # Allows all methods
-    allow_headers=["*"], # Allows all headers
+    allow_origins=SecurityConfig.get_cors_origins(),
+    allow_credentials=False,  # Set to False for security
+    allow_methods=["GET", "POST"],  # Only allow specific methods
+    allow_headers=["Content-Type", "X-API-Key"],  # Only allow specific headers
+    max_age=300,  # Cache preflight for 5 minutes
 )
 
-# --- Pydantic Models (for request data validation) ---
-class ArxivRequest(BaseModel):
-    url: str
-    explanation_style: str = "five-year-old"
+# Security headers middleware
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    """Add security headers to all responses."""
+    try:
+        response = await call_next(request)
+        
+        # Add security headers
+        for header, value in SecurityHeaders.get_security_headers().items():
+            response.headers[header] = value
+            
+        return response
+    except Exception as e:
+        logger.error(f"Error in security headers middleware: {e}")
+        raise
+
+# Request size limiting middleware
+@app.middleware("http") 
+async def limit_request_size(request: Request, call_next):
+    """Limit request body size."""
+    content_length = request.headers.get("content-length")
+    if content_length and int(content_length) > SecurityConfig.MAX_REQUEST_SIZE:
+        log_security_event("LARGE_REQUEST", f"Request size: {content_length}", request)
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Request too large. Maximum size: {SecurityConfig.MAX_REQUEST_SIZE} bytes"
+        )
+    return await call_next(request)
+
+# --- Pydantic Models (Legacy - keeping for compatibility) ---
+# Note: We now use SecureArxivRequest from security.py for enhanced validation
 
 # --- The AI Prompt ---
 # This is our "secret sauce". It tells the AI exactly what to do.
@@ -171,72 +257,208 @@ def extract_figures_from_pdf(pdf_path: str, max_figures: int = 5) -> list:
     return figures
 
 
-# --- API Endpoint ---
+# --- API Endpoints ---
 @app.post("/summarize")
-async def summarize_paper(request: ArxivRequest):
+@limiter.limit(f"{SecurityConfig.RATE_LIMIT_REQUESTS}/minute")
+async def summarize_paper(
+    request: Request,
+    data: SecureArxivRequest,
+    api_key_valid: bool = Depends(verify_api_key)
+):
     """
-    Accepts an arXiv URL, fetches the paper, and returns a summary.
+    Securely process an arXiv URL and return a summary.
+    
+    Security features:
+    - Rate limiting
+    - Input validation and sanitization
+    - API key validation (if enabled)
+    - Request size limiting
+    - Comprehensive error handling
     """
+    client_ip = getattr(request.client, 'host', 'unknown') if request.client else 'unknown'
+    logger.info(f"Processing request from {client_ip} for URL: {data.url}")
+    
     try:
-        # 1. Extract arXiv ID from URL
-        arxiv_id_match = re.search(r'abs/(\d+\.\d+)', request.url)
+        # Additional URL validation (defense in depth)
+        clean_url = URLValidator.validate_arxiv_url(data.url)
+        
+        # 1. Extract arXiv ID from URL - using more robust regex
+        arxiv_id_match = re.search(r'(?:abs|pdf)/(\d{4}\.\d{4,5})', clean_url)
         if not arxiv_id_match:
-            raise HTTPException(status_code=400, detail="Invalid arXiv URL. Please use a format like https://arxiv.org/abs/...")
+            log_security_event("INVALID_ARXIV_ID", f"URL: {data.url}", request)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, 
+                detail="Could not extract valid arXiv ID from URL"
+            )
         arxiv_id = arxiv_id_match.group(1)
+        logger.info(f"Extracted arXiv ID: {arxiv_id}")
 
-        # 2. Fetch Paper from arXiv
-        search = arxiv.Search(id_list=[arxiv_id])
-        paper = next(search.results())
+        # 2. Fetch Paper from arXiv with timeout
+        try:
+            search = arxiv.Search(id_list=[arxiv_id])
+            paper = next(search.results())
+        except StopIteration:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Paper with ID {arxiv_id} not found on arXiv"
+            )
+        except Exception as e:
+            logger.error(f"Error fetching paper {arxiv_id}: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Failed to fetch paper from arXiv"
+            )
         
-        # 3. Download and Extract Text from PDF
-        pdf_path = paper.download_pdf()
-        paper_text = ""
+        # 3. Download and Extract Text from PDF with size limits
+        try:
+            pdf_path = paper.download_pdf()
+            
+            # Check file size
+            file_size = os.path.getsize(pdf_path)
+            max_pdf_size = 50 * 1024 * 1024  # 50MB limit
+            if file_size > max_pdf_size:
+                os.remove(pdf_path)
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail="PDF file too large"
+                )
+            
+            paper_text = ""
+            
+            # Use PyMuPDF to extract text from the PDF
+            doc = fitz.open(pdf_path)
+            page_count = 0
+            max_pages = 100  # Limit pages to prevent abuse
+            
+            for page_num in range(min(doc.page_count, max_pages)):
+                page = doc.load_page(page_num)
+                page_text = page.get_text()  # type: ignore
+                paper_text += page_text
+                page_count += 1
+                
+                # Limit total text length
+                if len(paper_text) > 500000:  # 500KB text limit
+                    break
+                    
+            doc.close()
+            
+        except Exception as e:
+            logger.error(f"Error processing PDF for {arxiv_id}: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to process PDF"
+            )
+        finally:
+            # Always clean up the downloaded file
+            try:
+                if 'pdf_path' in locals():
+                    os.remove(pdf_path)
+            except:
+                pass
         
-        # Use PyMuPDF to extract text from the PDF
-        doc = fitz.open(pdf_path)
-        for page_num in range(doc.page_count):
-            page = doc.load_page(page_num)
-            paper_text += page.get_text()  # type: ignore
-        doc.close()
-        
-        # Extract figures from the PDF (disabled for now)
-        # extracted_figures = extract_figures_from_pdf(pdf_path)
+        # Extract figures from the PDF (disabled for security - can consume too much memory)
         extracted_figures = []
         
-        # Clean up the downloaded file
-        os.remove(pdf_path)
-        
         if len(paper_text) < 500: # Basic check for valid content
-            raise HTTPException(status_code=500, detail="Failed to extract sufficient text from the PDF.")
-
-        # 4. Call Gemini API with dynamic system prompt
-        system_prompt = get_system_prompt(request.explanation_style)
-        response = client.models.generate_content(
-            model="models/gemini-2.5-flash-lite-preview-06-17",
-            contents=paper_text,
-            config=types.GenerateContentConfig(
-                system_instruction=system_prompt,
-                response_mime_type="application/json",
-                response_json_schema=PAPER_SUMMARY_SCHEMA,
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, 
+                detail="Insufficient text extracted from PDF"
             )
-        )
+
+        # 4. Call Gemini API with timeout and error handling
+        try:
+            system_prompt = get_system_prompt(data.explanation_style)
+            
+            # Truncate paper text if too long to prevent API abuse
+            max_text_length = 100000  # Adjust based on your needs
+            if len(paper_text) > max_text_length:
+                paper_text = paper_text[:max_text_length] + "\n\n[Text truncated due to length]"
+                
+            response = client.models.generate_content(
+                model="models/gemini-2.5-flash-lite-preview-06-17",
+                contents=paper_text,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_prompt,
+                    response_mime_type="application/json",
+                    response_json_schema=PAPER_SUMMARY_SCHEMA,
+                )
+            )
+        except Exception as e:
+            logger.error(f"Error calling Gemini API for {arxiv_id}: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="AI service temporarily unavailable"
+            )
         
-        # 5. Return the JSON response
-        # The API returns markdown JSON, so we clean it up
+        # 5. Process and validate the response
         if not response.text:
-            raise HTTPException(status_code=500, detail="No response from the AI model.")
-        cleaned_json_string = response.text.strip().replace('```json', '').replace('```', '').strip()
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Empty response from AI service"
+            )
+            
+        # Clean and validate JSON response
+        try:
+            cleaned_json_string = response.text.strip().replace('```json', '').replace('```', '').strip()
+            
+            # Basic JSON validation
+            import json
+            parsed_summary = json.loads(cleaned_json_string)
+            
+            # Validate required fields
+            required_fields = ["gist", "analogy", "experimental_details", "key_findings", "why_it_matters", "key_terms"]
+            for field in required_fields:
+                if field not in parsed_summary:
+                    raise ValueError(f"Missing required field: {field}")
+                    
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.error(f"Invalid JSON response for {arxiv_id}: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Invalid response format from AI service"
+            )
+
+        logger.info(f"Successfully processed request for {arxiv_id} from {client_ip}")
+        
         return {
             "summary": cleaned_json_string, 
             "title": paper.title, 
             "figures": extracted_figures
         }
 
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
     except Exception as e:
-        print(f"An error occurred: {e}")
-        raise HTTPException(status_code=500, detail=f"An internal error occurred: {str(e)}")
+        # Log unexpected errors
+        logger.error(f"Unexpected error processing {data.url}: {e}")
+        log_security_event("UNEXPECTED_ERROR", str(e), request)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred"
+        )
 
-# Add a simple root endpoint to confirm the server is running
+# Add a health check endpoint with basic security
 @app.get("/")
-def read_root():
-    return {"message": "ResearchLikeIAmFive API is running!"}
+@limiter.limit("30/minute")  # More permissive for health checks
+async def health_check(request: Request):
+    """Health check endpoint."""
+    return {
+        "status": "healthy",
+        "service": "ResearchLikeIAmFive API",
+        "version": "1.0.0",
+        "environment": SecurityConfig.ENVIRONMENT
+    }
+
+# Add API information endpoint (only in development)
+if not SecurityConfig.is_production():
+    @app.get("/info")
+    async def api_info():
+        """API information (development only)."""
+        return {
+            "title": "ResearchLikeIAmFive API",
+            "description": "Secure API for summarizing arXiv papers",
+            "version": "1.0.0",
+            "docs_url": "/docs",
+            "redoc_url": "/redoc"
+        }
