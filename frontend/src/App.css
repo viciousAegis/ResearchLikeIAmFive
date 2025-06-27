@@ -141,6 +141,73 @@
   }
 }
 
+/* Apple-style smooth animations */
+@keyframes slide-in-from-bottom {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-in {
+  animation: slide-in-from-bottom 0.6s ease-out;
+}
+
+.slide-in-from-bottom-4 {
+  animation-duration: 0.7s;
+}
+
+/* Smooth backdrop blur for modal */
+.backdrop-blur-xl {
+  backdrop-filter: blur(24px);
+}
+
+/* Custom shadow for Apple-like depth */
+.shadow-3xl {
+  box-shadow: 0 35px 70px -10px rgba(0, 0, 0, 0.3);
+}
+
+/* Enhanced gradient effects */
+.gradient-bg-apple {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* Smooth transitions for all interactive elements */
+* {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+/* Apple-style button effects */
+.apple-button {
+  transform: scale(1);
+  transition: all 0.15s ease;
+}
+
+.apple-button:active {
+  transform: scale(0.98);
+}
+
+/* Enhanced glass morphism */
+.glass-morphism {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Smooth hover states */
+.hover-lift {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
 /* Responsive improvements */
 @media (max-width: 768px) {
   .glass-card {

@@ -1,5 +1,7 @@
 import os
 import re
+import base64
+import io
 from google import genai
 from google.genai import types
 from fastapi import FastAPI, HTTPException
@@ -49,7 +51,7 @@ Your goal is to explain complex research papers to a complete layperson.
 You will be given the text content of a research paper.
 
 Your task is to return a JSON object with the following exact keys: 
-"gist", "analogy", "experimental_details", "key_findings", "why_it_matters", "key_terms".
+"gist", "analogy", "experimental_details", "key_findings","why_it_matters", "key_terms",
 """
 
 # The JSON Schema to enforce the output structure.
@@ -94,6 +96,47 @@ PAPER_SUMMARY_SCHEMA = {
 }
 
 
+def extract_figures_from_pdf(pdf_path: str, max_figures: int = 5) -> list:
+    """
+    Extract figures from PDF and return them as base64 encoded images.
+    """
+    figures = []
+    doc = fitz.open(pdf_path)
+    
+    for page_num in range(doc.page_count):
+        page = doc.load_page(page_num)
+        image_list = page.get_images()
+        
+        for img_index, img in enumerate(image_list):
+            if len(figures) >= max_figures:
+                break
+                
+            # Get the image
+            xref = img[0]
+            base_image = doc.extract_image(xref)
+            image_bytes = base_image["image"]
+            
+            # Skip very small images (likely decorative elements)
+            if len(image_bytes) < 10000:  # 10KB threshold
+                continue
+            
+            # Convert to base64
+            image_base64 = base64.b64encode(image_bytes).decode()
+            image_ext = base_image["ext"]
+            
+            figures.append({
+                "data": f"data:image/{image_ext};base64,{image_base64}",
+                "page": page_num + 1,
+                "index": len(figures)
+            })
+        
+        if len(figures) >= max_figures:
+            break
+    
+    doc.close()
+    return figures
+
+
 # --- API Endpoint ---
 @app.post("/summarize")
 async def summarize_paper(request: ArxivRequest):
@@ -122,6 +165,10 @@ async def summarize_paper(request: ArxivRequest):
             paper_text += page.get_text()  # type: ignore
         doc.close()
         
+        # Extract figures from the PDF (disabled for now)
+        # extracted_figures = extract_figures_from_pdf(pdf_path)
+        extracted_figures = []
+        
         # Clean up the downloaded file
         os.remove(pdf_path)
         
@@ -144,7 +191,11 @@ async def summarize_paper(request: ArxivRequest):
         if not response.text:
             raise HTTPException(status_code=500, detail="No response from the AI model.")
         cleaned_json_string = response.text.strip().replace('```json', '').replace('```', '').strip()
-        return {"summary": cleaned_json_string, "title": paper.title}
+        return {
+            "summary": cleaned_json_string, 
+            "title": paper.title, 
+            "figures": extracted_figures
+        }
 
     except Exception as e:
         print(f"An error occurred: {e}")
