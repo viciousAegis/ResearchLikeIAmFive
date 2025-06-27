@@ -44,24 +44,27 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-100">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
         {/* Hero Section */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl sm:text-5xl font-bold mb-6">
+        <div className="text-center mb-16 max-w-5xl mx-auto">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl shadow-lg mb-6">
+            <span className="text-3xl">🧠</span>
+          </div>
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6 text-gray-900">
             <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               Research
             </span>
-            LikeIAmFive 🧠💡
+            <span className="text-gray-800"> Like I'm Five</span>
           </h1>
-          <p className="text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
-            Transform complex research papers into simple, digestible explanations. 
+          <p className="text-xl text-gray-600 leading-relaxed mb-8">
+            Transform complex research papers into simple, digestible explanations that anyone can understand. 
             Just paste an{' '}
             <a 
               href="https://arxiv.org/" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="text-blue-600 font-medium hover:text-blue-700 underline decoration-2 underline-offset-2"
+              className="text-blue-600 font-semibold hover:text-blue-700 underline decoration-2 underline-offset-2 transition-colors"
             >
               arXiv.org
             </a>{' '}
@@ -70,12 +73,12 @@ function App() {
         </div>
 
         {/* Input Form */}
-        <div className="max-w-2xl mx-auto mb-8">
-          <div className="bg-white/80 backdrop-blur-sm border border-white/20 rounded-3xl shadow-xl p-8 hover:shadow-2xl transition-all duration-300">
+        <div className="max-w-3xl mx-auto mb-12">
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8 transition-all duration-300 hover:shadow-2xl">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label htmlFor="url" className="block text-slate-700 font-semibold mb-3 text-lg">
-                  arXiv Paper URL
+                <label htmlFor="url" className="block text-gray-800 font-semibold mb-3 text-lg">
+                  📄 arXiv Paper URL
                 </label>
                 <input
                   type="url"
@@ -85,13 +88,13 @@ function App() {
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   required
-                  className="w-full px-6 py-4 rounded-2xl border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-white/90 backdrop-blur-sm placeholder:text-slate-400 text-lg"
+                  className="w-full px-6 py-4 rounded-xl border-2 border-gray-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-white placeholder:text-gray-400 text-lg outline-none"
                 />
               </div>
               <button 
                 type="submit" 
                 disabled={isLoading}
-                className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold px-8 py-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-4 focus:ring-blue-500/30 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none text-lg"
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-4 focus:ring-blue-500/30 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none text-lg"
               >
                 {isLoading ? (
                   <span className="flex items-center justify-center gap-3">
@@ -99,7 +102,9 @@ function App() {
                     Analyzing Paper...
                   </span>
                 ) : (
-                  '✨ Explain It Like I\'m Five!'
+                  <span className="flex items-center justify-center gap-2">
+                    ✨ Explain It Like I'm Five!
+                  </span>
                 )}
               </button>
             </form>
@@ -108,15 +113,15 @@ function App() {
 
         {/* Loading State */}
         {isLoading && (
-          <div className="max-w-2xl mx-auto mb-8">
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-8 text-center">
-              <div className="flex items-center justify-center gap-4 mb-3">
-                <div className="w-6 h-6 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin"></div>
-                <p className="font-semibold text-blue-800 text-lg">
+          <div className="max-w-3xl mx-auto mb-12">
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-8 text-center">
+              <div className="flex items-center justify-center gap-4 mb-4">
+                <div className="w-8 h-8 border-3 border-blue-600/30 border-t-blue-600 rounded-full animate-spin"></div>
+                <p className="font-semibold text-blue-800 text-xl">
                   🔍 Analyzing paper and generating simple explanation...
                 </p>
               </div>
-              <p className="text-sm text-blue-600 opacity-80">
+              <p className="text-blue-600">
                 This usually takes 30-60 seconds
               </p>
             </div>
@@ -125,12 +130,13 @@ function App() {
 
         {/* Error State */}
         {error && (
-          <div className="max-w-2xl mx-auto mb-8">
-            <div className="bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-2xl p-8 text-center">
-              <div className="flex items-center justify-center gap-3">
-                <span className="text-2xl">⚠️</span>
-                <p className="font-semibold text-red-700">{error}</p>
+          <div className="max-w-3xl mx-auto mb-12">
+            <div className="bg-red-50 border border-red-200 rounded-xl p-8 text-center">
+              <div className="flex items-center justify-center gap-3 mb-2">
+                <span className="text-3xl">⚠️</span>
+                <p className="font-semibold text-red-800 text-lg">Something went wrong</p>
               </div>
+              <p className="text-red-700">{error}</p>
             </div>
           </div>
         )}
