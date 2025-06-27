@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import axios from 'axios';
 import SummaryDisplay from './SummaryDisplay';
-import { APIResponse, ParsedAPIResponse, PaperSummary } from './types';
+import { APIResponse, ParsedAPIResponse, PaperSummary, LegacyAPIResponse } from './types';
 
 // Get the API URL from environment variables with validation
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 // Basic URL validation for client-side security
 const validateArxivUrl = (url: string): boolean => {
@@ -76,11 +76,18 @@ function App() {
           withCredentials: false,
         }
       );
+
+      console.log('API response:', response.data);
       
-      if (response.data && response.data.summary) {
+      // Handle new Flask backend response format
+      if (response.data && (response.data as any).success && (response.data as any).data) {
+        const { data } = response.data as APIResponse;
+        
         try {
-          // Secure JSON parsing with validation
-          const parsedSummary: PaperSummary = JSON.parse(response.data.summary);
+          // Parse the summary JSON string
+          const parsedSummary: PaperSummary = typeof data.summary === 'string' 
+            ? JSON.parse(data.summary) 
+            : data.summary;
           
           // Validate response structure
           if (!parsedSummary.gist || !parsedSummary.analogy || !parsedSummary.key_findings) {
@@ -89,8 +96,29 @@ function App() {
           
           const parsedData: ParsedAPIResponse = { 
             summary: parsedSummary, 
-            title: response.data.title || 'Unknown Title',
-            figures: response.data.figures || []
+            title: data.paper_info?.title || 'Unknown Title',
+            figures: data.figures || []
+          };
+          setSummaryData(parsedData);
+        } catch (parseError) {
+          console.error('JSON parsing error:', parseError);
+          setError('Invalid response format from server');
+        }
+      } 
+      // Handle legacy response format (fallback)
+      else if (response.data && (response.data as any).summary) {
+        const legacyData = response.data as unknown as LegacyAPIResponse;
+        try {
+          const parsedSummary: PaperSummary = JSON.parse(legacyData.summary);
+          
+          if (!parsedSummary.gist || !parsedSummary.analogy || !parsedSummary.key_findings) {
+            throw new Error('Invalid response structure');
+          }
+          
+          const parsedData: ParsedAPIResponse = { 
+            summary: parsedSummary, 
+            title: legacyData.title || 'Unknown Title',
+            figures: legacyData.figures || []
           };
           setSummaryData(parsedData);
         } catch (parseError) {
@@ -98,7 +126,7 @@ function App() {
           setError('Invalid response format from server');
         }
       } else {
-        throw new Error('Empty response from server');
+        throw new Error('Empty or invalid response from server');
       }
     } catch (err: any) {
       console.error('Request error:', err);
@@ -108,11 +136,15 @@ function App() {
       } else if (err.response?.status === 429) {
         setError('Too many requests. Please wait a moment and try again.');
       } else if (err.response?.status === 400) {
-        setError(err.response?.data?.detail || 'Invalid request. Please check the arXiv URL.');
+        // Handle both Flask and legacy error formats
+        const errorMsg = err.response?.data?.error || err.response?.data?.detail || 'Invalid request. Please check the arXiv URL.';
+        setError(errorMsg);
       } else if (err.response?.status >= 500) {
         setError('Server error. Please try again later.');
       } else {
-        const errorMessage = err.response?.data?.detail || 'An unexpected error occurred. Please try again.';
+        // Handle both Flask and legacy error formats
+        console.error(err)
+        const errorMessage = err.response?.data?.error || err.response?.data?.detail || 'An unexpected error occurred. Please try again.';
         setError(errorMessage);
       }
     } finally {

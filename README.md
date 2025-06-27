@@ -1,23 +1,52 @@
 # 🧠 Research Like I'm Five
 
-### 🎨 **Modern Web Interface**
-- **Sleek Interface**: Clean, modern design for optimal user experience
-- **Smooth Animations**: Delightful micro-interactions and seamless transitions
-- **Responsive Design**: Perfect experience on desktop, tablet, and mobile
-- **Dark/Light Mode**: Automatic theme switching based on system preferences
+*"If you can't explain it simply, you don't understand it well enough."* — Albert Einstein
 
-### 🤖 **12 Unique Explanation Styles** can't explain it simply, you don't understand it well enough."* — Albert Einstein
+Transform complex research p## 📱 How to Use
 
-Transform complex research papers into engaging, easy-to-understand explanations with the power of AI and stunning visual design.
+1. Copy any arXiv paper URL (e.g., `https://arxiv.org/abs/1706.03762`)
+2. Paste it into the input field  
+3. Choose your explanation style
+4. Click "Explain It Like I'm Five!"
+5. Enjoy the simplified explanation
+
+## 🏗️ Architecture
+
+- **Frontend**: React + TypeScript + Vite (builds to `/dist`)
+- **Backend**: Serverless functions in `/api`
+- **Deployment**: Single Vercel deployment
+- **APIs**: `/api/summarize` and `/api/health`
+
+## 🛠️ Technology Stack
+
+### 🌐 **Unified Serverless Architecture**
+- **[Vercel](https://vercel.com/)** - Serverless deployment platform with global CDN
+- **[Vercel Functions](https://vercel.com/docs/functions)** - Python serverless functions
+
+### 🐍 **Backend (Serverless)**
+- **[Google Gemini AI](https://ai.google.dev/)** - State-of-the-art language model for intelligent explanations
+- **[PyMuPDF](https://pymupdf.readthedocs.io/)** - Professional PDF processing and figure extraction
+- **[arXiv API](https://info.arxiv.org/help/api/)** - Direct access to the world's largest repository of research papers
+- **[Pydantic](https://pydantic.dev/)** - Data validation with Python type hints
+
+### ⚛️ **Frontend**
+- **[React 19](https://react.dev/)** - Latest React with concurrent features
+- **[TypeScript](https://www.typescriptlang.org/)** - Type-safe JavaScript for robust development
+- **[Vite](https://vite.dev/)** - Next-generation frontend tooling with instant hot reload
+- **[Tailwind CSS 4](https://tailwindcss.com/)** - Utility-first CSS framework with modern features
+- **[Lucide React](https://lucide.dev/)** - Beautiful, customizable SVG icons
+- **[Axios](https://axios-http.com/)** - Promise-based HTTP client for seamless API communication easy-to-understand explanations with the power of AI and stunning visual design.
 
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
-[![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![React](https://img.shields.io/badge/React-19+-61DAFB.svg)](https://reactjs.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com/)
+[![Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-000000.svg)](https://vercel.com/)
 
 ## ✨ What is Research Like I'm Five?
 
 **Research Like I'm Five** is a revolutionary web application that bridges the gap between complex academic research and public understanding. Simply paste an arXiv paper URL, choose your explanation style, and watch as cutting-edge AI transforms dense scientific jargon into engaging, accessible content.
+
+**🆕 Now with unified architecture!** This application has been optimized for seamless deployment on Vercel with serverless functions, providing lightning-fast performance and global scalability.
 
 ### 🎯 Perfect For:
 - **Students** who want to understand research papers quickly
@@ -85,63 +114,53 @@ Choose how you want complex research explained:
 - **[Lucide React](https://lucide.dev/)** - Beautiful, customizable SVG icons
 - **[Axios](https://axios-http.com/)** - Promise-based HTTP client for seamless API communication
 
-##  Quick Start
+##  🚀 Quick Start
 
 ### 📋 Prerequisites
 
 Before you begin, ensure you have:
-- **Python 3.13+** ([Download here](https://www.python.org/downloads/))
+- **Python 3.9+** ([Download here](https://www.python.org/downloads/))
 - **Node.js 18+** ([Download here](https://nodejs.org/))
 - **Google Gemini API Key** ([Get yours here](https://ai.google.dev/))
 
-### ⚡ One-Click Setup
+### ⚡ Unified Architecture Setup
+
+This application now uses a unified architecture optimized for Vercel deployment:
 
 ```bash
 # Clone the repository
 git clone https://github.com/yourusername/ResearchLikeIAmFive.git
 cd ResearchLikeIAmFive
 
-# Backend setup
-cd backend
-uv install
-echo "GOOGLE_API_KEY=your_api_key_here" > .env
-uvicorn main:app --reload &
-
-# Frontend setup (in a new terminal)
-cd ../frontend
+# Install dependencies
 npm install
-npm run dev
+pip install -r requirements.txt
 
-# Open http://localhost:5173 in your browser 🎉
+# Set up environment
+echo "GOOGLE_API_KEY=your_google_ai_api_key" > .env.local
+
+# Development (with Vercel CLI - recommended)
+npm install -g vercel
+vercel dev
+
+# Or frontend only
+npm run dev
 ```
 
-## Getting Started
+### 🌐 Deploy to Vercel
 
-### Prerequisites
-- Python 3.13+
-- Node.js 18+
-- Google Gemini API key
+**Option 1: Vercel CLI**
+```bash
+vercel --prod
+```
 
-### Backend Setup
-1. Navigate to the backend directory:
-   ```bash
-   cd backend
-   ```
+**Option 2: GitHub Integration**
+1. Push to GitHub
+2. Connect to Vercel
+3. Add `GOOGLE_API_KEY` environment variable
+4. Deploy! 🚀
 
-2. Install dependencies:
-   ```bash
-   uv install
-   ```
-
-3. Create a `.env` file with your Gemini API key:
-   ```
-   GOOGLE_API_KEY=your_api_key_here
-   ```
-
-4. Start the server:
-   ```bash
-   uvicorn main:app --reload --host 0.0.0.0 --port 8000
-   ```
+📖 **Need detailed setup instructions?** See [DEPLOYMENT.md](./DEPLOYMENT.md) for comprehensive deployment guide.
 
 ### Frontend Setup
 1. Navigate to the frontend directory:

@@ -1,11 +1,13 @@
 """
-Utility functions for ResearchLikeIAmFive backend.
-Common helper functions used across multiple modules.
+Shared utilities for Vercel serverless functions.
+Common helper functions used across API endpoints.
 """
 
 import json
 import logging
 from typing import Dict, Any, Optional
+import re
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -72,3 +74,64 @@ def truncate_text(text: str, max_length: int, suffix: str = "\n\n[Text truncated
     if len(text) <= max_length:
         return text
     return text[:max_length] + suffix
+
+
+def validate_arxiv_url(url: str) -> bool:
+    """
+    Validate arXiv URL format for serverless functions.
+    
+    Args:
+        url: URL to validate
+        
+    Returns:
+        True if valid arXiv URL
+    """
+    arxiv_pattern = r'^https?://(www\.)?arxiv\.org/(abs|pdf)/\d{4}\.\d{4,5}(v\d+)?/?(\.(pdf))?$'
+    return bool(re.match(arxiv_pattern, url.strip()))
+
+
+def extract_arxiv_id(url: str) -> Optional[str]:
+    """
+    Extract arXiv ID from URL.
+    
+    Args:
+        url: arXiv URL
+        
+    Returns:
+        arXiv ID or None if not found
+    """
+    match = re.search(r'(?:abs|pdf)/(\d{4}\.\d{4,5})', url)
+    return match.group(1) if match else None
+
+
+def create_error_response(error_message: str, status_code: int = 400) -> Dict[str, Any]:
+    """
+    Create standardized error response for API functions.
+    
+    Args:
+        error_message: Error message
+        status_code: HTTP status code
+        
+    Returns:
+        Error response dictionary
+    """
+    return {
+        "error": error_message,
+        "status_code": status_code
+    }
+
+
+def create_success_response(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Create standardized success response for API functions.
+    
+    Args:
+        data: Response data
+        
+    Returns:
+        Success response dictionary
+    """
+    return {
+        "success": True,
+        "data": data
+    }

@@ -27,7 +27,26 @@ export interface PaperSummary {
   figures: Figure[];
 }
 
+export interface PaperInfo {
+  title: string;
+  authors: string[];
+  published: string | null;
+  arxiv_id: string;
+  url: string;
+}
+
 export interface APIResponse {
+  success: boolean;
+  data: {
+    paper_info: PaperInfo;
+    summary: string | PaperSummary; // Can be JSON string or parsed object
+    explanation_style: string;
+    figures: ExtractedFigure[];
+  };
+}
+
+// Legacy response format for backward compatibility
+export interface LegacyAPIResponse {
   summary: string; // JSON string that needs to be parsed into PaperSummary
   title: string;
   figures: ExtractedFigure[];

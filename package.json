@@ -1,13 +1,16 @@
 {
-  "name": "frontend",
+  "name": "research-like-i-am-five",
   "private": true,
-  "version": "0.0.0",
+  "version": "2.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:vercel": "vercel dev",
+    "dev:frontend": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "vercel-build": "vite build"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.11",
