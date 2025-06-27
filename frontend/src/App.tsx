@@ -18,15 +18,16 @@ function App() {
 
   const explanationStyles = [
     { value: 'five-year-old', label: '👶 Like I\'m Five', shortLabel: 'Five' },
-    { value: 'pop-culture', label: '🎵 Pop Culture Terms', shortLabel: 'a Pop Culture Fan' },
-    { value: 'anime', label: '🎌 Anime Terms', shortLabel: 'an Anime Fan' },
-    { value: 'sports', label: '⚽ Sports Terms', shortLabel: 'a Sports Fan' },
-    { value: 'food', label: '🍕 Food Terms', shortLabel: 'a Chef' },
-    { value: 'gaming', label: '🎮 Gaming Terms', shortLabel: 'a Gamer' },
-    { value: 'fantasy', label: '🏰 Fantasy Terms', shortLabel: 'a Fantasy Fan' },
-    { value: 'wild-west', label: '🤠 Wild West Terms', shortLabel: 'a Cowboy' },
-    { value: 'space', label: '🚀 Space Terms', shortLabel: 'an Astronaut' },
-    { value: 'superhero', label: '🦸 Superhero Terms', shortLabel: 'a Superhero Fan' }
+    { value: 'pop-culture', label: '🔥 Pop Culture Guru', shortLabel: 'a Pop Culture Fan' },
+    { value: 'anime', label: '🎌 Anime Sensei', shortLabel: 'an Anime Fan' },
+    { value: 'sports', label: '🏆 Sports Commentator', shortLabel: 'a Sports Fan' },
+    { value: 'food', label: '👨‍🍳 Gordon Ramsay', shortLabel: 'a Chef' },
+    { value: 'gaming', label: '🎮 Twitch Streamer', shortLabel: 'a Gamer' },
+    { value: 'marvel', label: '💥 Tony Stark', shortLabel: 'a Marvel Fan' },
+    { value: 'harry-potter', label: '⚡ Professor McGonagall', shortLabel: 'a Wizard' },
+    { value: 'brain-rot', label: '💀 Gen Alpha Sigma', shortLabel: 'a Gen Alpha kid' },
+    { value: 'reddit', label: '👽 Ultimate Redditor', shortLabel: 'a Redditor' },
+    { value: 'shakespearean', label: '🎭 Shakespeare\'s Bard', shortLabel: 'from the Globe Theatre' }
   ];
 
   const handleSubmit = async (event: React.FormEvent) => {
