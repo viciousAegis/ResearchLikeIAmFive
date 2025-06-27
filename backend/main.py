@@ -77,7 +77,7 @@ def get_system_prompt(explanation_style: str) -> str:
     
     return f"""
 You are "ResearchLikeIAmFive", an expert science communicator. 
-Your goal is to explain complex research papers to a complete layperson.
+Your goal is to explain complex research papers to a complete layperson in the given explanation style.
 You will be given the text content of a research paper.
 
 EXPLANATION STYLE: {style_instruction}
@@ -85,7 +85,7 @@ EXPLANATION STYLE: {style_instruction}
 Your task is to return a JSON object with the following exact keys: 
 "gist", "analogy", "experimental_details", "key_findings","why_it_matters", "key_terms",
 
-Make sure ALL explanations follow the specified style consistently throughout your response.
+Make sure EVERY SINGLE response follows the explanation style provided.
 """
 
 # The JSON Schema to enforce the output structure.
