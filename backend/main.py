@@ -42,16 +42,48 @@ app.add_middleware(
 # --- Pydantic Models (for request data validation) ---
 class ArxivRequest(BaseModel):
     url: str
+    explanation_style: str = "five-year-old"
 
 # --- The AI Prompt ---
 # This is our "secret sauce". It tells the AI exactly what to do.
-SYSTEM_PROMPT = """
+def get_system_prompt(explanation_style: str) -> str:
+    """Generate a system prompt based on the explanation style."""
+    
+    style_prompts = {
+        "five-year-old": "You are explaining to a 5-year-old child. Use very simple language, avoid technical terms, and relate everything to things a child would understand like toys, animals, or everyday activities.",
+        
+        "pop-culture": "You are explaining using pop culture references. Use examples from popular movies, TV shows, celebrities, music, memes, and social media trends. Make it relatable to someone who follows mainstream culture.",
+        
+        "anime": "You are explaining using anime and manga references. Use concepts from popular anime series, manga tropes, character archetypes, and Japanese pop culture. Reference things like power levels, jutsu, quirks, or magical systems.",
+        
+        "sports": "You are explaining using sports analogies. Compare everything to sports concepts like teamwork, strategy, training, competition, coaching, and game mechanics. Use examples from football, basketball, soccer, or other popular sports. Reference popular athletes or teams when relevant.",
+        
+        "food": "You are explaining using food and cooking analogies. Compare concepts to recipes, ingredients, cooking techniques, flavors, kitchen equipment, and restaurant operations. Make it delicious and appetizing!",
+        
+        "gaming": "You are explaining using video game terminology. Use concepts like leveling up, skill trees, game mechanics, NPCs, quests, achievements, multiplayer dynamics, and different game genres.",
+        
+        "fantasy": "You are explaining using fantasy and medieval concepts. Use analogies involving wizards, dragons, magical spells, kingdoms, quests, knights, and mystical creatures. Make it epic and magical!",
+        
+        "wild-west": "You are explaining using Wild West and cowboy terminology. Use concepts like frontier towns, sheriffs, outlaws, cattle ranching, gold mining, saloons, and horseback riding. Yeehaw!",
+        
+        "space": "You are explaining using space and sci-fi concepts. Use analogies involving rockets, planets, galaxies, astronauts, space missions, alien civilizations, and futuristic technology.",
+        
+        "superhero": "You are explaining using superhero and comic book concepts. Compare everything to superpowers, secret identities, villain schemes, hero teams, comic book physics, and saving the world."
+    }
+    
+    style_instruction = style_prompts.get(explanation_style, style_prompts["five-year-old"])
+    
+    return f"""
 You are "ResearchLikeIAmFive", an expert science communicator. 
 Your goal is to explain complex research papers to a complete layperson.
 You will be given the text content of a research paper.
 
+EXPLANATION STYLE: {style_instruction}
+
 Your task is to return a JSON object with the following exact keys: 
 "gist", "analogy", "experimental_details", "key_findings","why_it_matters", "key_terms",
+
+Make sure ALL explanations follow the specified style consistently throughout your response.
 """
 
 # The JSON Schema to enforce the output structure.
@@ -175,12 +207,13 @@ async def summarize_paper(request: ArxivRequest):
         if len(paper_text) < 500: # Basic check for valid content
             raise HTTPException(status_code=500, detail="Failed to extract sufficient text from the PDF.")
 
-        # 4. Call Gemini API
+        # 4. Call Gemini API with dynamic system prompt
+        system_prompt = get_system_prompt(request.explanation_style)
         response = client.models.generate_content(
             model="models/gemini-2.5-flash-lite-preview-06-17",
             contents=paper_text,
             config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_PROMPT,
+                system_instruction=system_prompt,
                 response_mime_type="application/json",
                 response_json_schema=PAPER_SUMMARY_SCHEMA,
             )
