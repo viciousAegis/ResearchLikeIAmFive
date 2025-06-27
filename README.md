@@ -1,4 +1,4 @@
-# 🧠 Research Like I'm## 🚀 Features
+# 🧠 Research Like I'm Five
 
 ### 🎨 **Modern Web Interface**
 - **Sleek Interface**: Clean, modern design for optimal user experience
