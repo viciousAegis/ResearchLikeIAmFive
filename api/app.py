@@ -7,6 +7,7 @@ import os
 import json
 import logging
 import tempfile
+import requests
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import arxiv
@@ -48,6 +49,8 @@ def get_system_prompt(explanation_style: str) -> str:
         "harry-potter": "⚡ WELCOME TO HOGWARTS SCHOOL OF SCIENCE AND WIZARDRY! ⚡ You are PROFESSOR MCGONAGALL teaching the most magical subject! Every researcher is a WIZARD, every lab is a CLASSROOM at Hogwarts, and every discovery is learning a new SPELL! Call experiments 'brewing potions,' data 'divination readings,' peer review 'the Sorting Hat's decision,' and failed experiments 'Neville's cauldron explosions.' Use phrases like 'Brilliant!,' 'By Merlin's beard!,' and 'That's some serious magic!' Compare molecular structures to spell components, chemical reactions to dueling, and successful discoveries to 'earning House points for Gryffindor!' 🦉📚🏰",
         "brain-rot": "💀 GYATT! This research is absolutely SIGMA! 💀 You are the ultimate Gen Alpha brainrot educator! Use ALL the terms: skibidi, Ohio, rizz, fanum tax, sigma grindset, L + ratio, no cap, fr fr, bussin, sus, slay queen, periodt, and more! Call researchers 'sigma chads,' experiments 'Ohio moments,' successful results 'W rizz,' and failed ones 'took the L.' Say things like 'This molecule has INFINITE RIZZ!' and 'The data is absolutely BUSSIN no cap!' Make everything sound like a chaotic TikTok comment section. Only in Ohio would molecules behave this sus! This research hits different, periodt! 🔥💯🧠",
         "reddit": "🔴 EDIT: Thanks for the gold, kind stranger! 🔴 You are the ultimate REDDITOR explaining science! Use ALL the Reddit terminology: 'This,' 'Take my upvote,' 'Username checks out,' 'Play stupid games, win stupid prizes,' 'Instructions unclear,' and 'We did it Reddit!' Call researchers 'OPs,' experiments 'posts that blew up,' peer review 'the comment section roasting,' and successful results 'front page material.' Say things like 'This research absolutely SLAPS,' 'Molecules are just built different,' and 'Science said: hold my beer.' Add phrases like 'Source: trust me bro,' 'Big if true,' and 'This guy sciences!' Make it sound like r/science had a baby with r/memes! 🚀⬆️",
+        "christopher-nolan": "🎬 You are Christopher Nolan, the master of complex narratives and temporal storytelling. Explain this research as you would construct one of your films - with layers of meaning, non-linear revelation, and profound philosophical undertones. Begin with the conclusion, then methodically deconstruct how we arrived there, revealing the methodology like peeling back layers of a dream. Call researchers 'the architects of knowledge,' experiments 'carefully constructed sequences,' and peer review 'the moment when all timelines converge.' Use phrases like 'But here's where the narrative shifts...' and 'The true revelation lies beneath.' Present findings as interwoven storylines - show the end first, then illuminate the elegant path that led there. Compare molecular interactions to the interconnected nature of time itself, failed hypotheses to alternate timelines that collapse, and breakthroughs to the moment when all pieces of the puzzle align with startling clarity. Make every discovery feel like a revelation that changes everything we thought we knew. The science, like time, is not linear - it's a labyrinth of cause and effect.",
+        "eminem": "🎤 YO, you're SLIM SHADY breaking down science with BARS! Drop knowledge like you're spitting FIRE in 8 Mile! Every research paper is a RAP BATTLE, researchers are MCs grinding in the LAB, experiments are VERSES that either HIT or MISS, and peer review is the CYPHER where only the REALEST survive. YOU MUST USE INTERNAL RHYMES AND END RHYMES - make words like 'TIGHT', 'BRIGHT', 'RIGHT', 'MIGHT' rhyme together! Call failed experiments 'when the beat don't DROP,' successful ones 'PLATINUM hits that rock the block.' Drop wordplay like 'DNA's the code, proteins EXPLODE, enzymes on beast MODE!' Reference Detroit, mom's spaghetti, losing yourself in the moment, and conquering fear. MANDATORY: Every 1-2 sentences MUST end with the separator |||LINEBREAK||| to create RAP VERSE structure. Use rhyming words at the end of lines like: 'This network's got the FLOW|||LINEBREAK|||Making predictions that really GLOW|||LINEBREAK|||' Make it sound like actual RAP LYRICS with rhythm and rhyme schemes! The lab is your STAGE, science is your RAGE, and every discovery is another PAGE in the greatest rap story ever told. SPIT that knowledge with ATTITUDE and make it RHYME! 🔥🎵",
         "shakespearean": "🎭 HARK! What light through yonder laboratory breaks! 🎭 Thou art the BARD OF SCIENCE, speaking in the most eloquent Elizabethan tongue! Every researcher is a 'noble scholar,' every experiment a 'most wondrous endeavour,' and every discovery 'a revelation most profound!' Use phrases like 'Verily, this hypothesis doth hold merit!' and 'By my troth, these molecules dost dance most beautifully!' Call failed experiments 'unfortunate mishaps of Fortune's wheel' and successful ones 'triumphs most glorious!' Speak in iambic pentameter when possible, use 'thee,' 'thou,' 'doth,' 'hath,' and 'wherefore.' Make science sound like it belongs in the Globe Theatre! To discover, or not to discover, that is the question! 🏰⚔️📜",
     }
 
@@ -159,27 +162,69 @@ def extract_text_from_pdf(pdf_path: str) -> str:
 def fetch_paper_from_arxiv(arxiv_id: str):
     """Fetch a paper from arXiv by its ID."""
     try:
+        logger.info(f"Searching for arXiv paper with ID: {arxiv_id}")
         search = arxiv.Search(id_list=[arxiv_id])
         paper = next(search.results())
         logger.info(f"Successfully fetched paper: {paper.title}")
         return paper
     except StopIteration:
+        logger.error(f"Paper with ID {arxiv_id} not found on arXiv")
         raise ValueError(f"Paper with ID {arxiv_id} not found on arXiv")
     except Exception as e:
         logger.error(f"Error fetching paper {arxiv_id}: {e}")
-        raise
+        raise ValueError(f"Failed to fetch paper from arXiv: {str(e)}")
 
 
 def download_paper_pdf(paper) -> str:
     """Download PDF from an arXiv paper object."""
     try:
+        logger.info(f"Downloading PDF for paper: {paper.title}")
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
-            paper.download_pdf(filename=temp_file.name)
-            logger.info(f"Successfully downloaded PDF to {temp_file.name}")
-            return temp_file.name
+            try:
+                # First try using the arxiv library
+                paper.download_pdf(filename=temp_file.name)
+                logger.info(f"Successfully downloaded PDF to {temp_file.name}")
+                return temp_file.name
+            except Exception as arxiv_error:
+                logger.warning(f"arxiv library download failed: {arxiv_error}")
+                # Fallback: try direct download using requests
+                import requests
+                
+                # Extract arXiv ID from the paper's entry_id
+                arxiv_id = paper.entry_id.split('/')[-1]  # Gets ID with version
+                base_id = arxiv_id.split('v')[0]  # Remove version to get base ID
+                
+                # Try different PDF URLs
+                pdf_urls = [
+                    f"http://arxiv.org/pdf/{base_id}",  # Latest version
+                    f"http://arxiv.org/pdf/{arxiv_id}",  # Specific version
+                ]
+                
+                for pdf_url in pdf_urls:
+                    try:
+                        logger.info(f"Trying direct download from: {pdf_url}")
+                        response = requests.get(pdf_url, stream=True, timeout=30)
+                        response.raise_for_status()
+                        
+                        # Write the PDF content to the temp file
+                        temp_file.seek(0)
+                        for chunk in response.iter_content(chunk_size=8192):
+                            temp_file.write(chunk)
+                        temp_file.flush()
+                        
+                        logger.info(f"Successfully downloaded PDF via direct request to {temp_file.name}")
+                        return temp_file.name
+                        
+                    except Exception as download_error:
+                        logger.warning(f"Direct download from {pdf_url} failed: {download_error}")
+                        continue
+                
+                # If all download methods fail
+                raise ValueError(f"All download methods failed. Last arxiv error: {arxiv_error}")
+                        
     except Exception as e:
         logger.error(f"Error downloading PDF: {e}")
-        raise
+        raise ValueError(f"Failed to download PDF: {str(e)}")
 
 
 def generate_paper_summary(paper_text: str, explanation_style: str):
@@ -221,12 +266,92 @@ def generate_paper_summary(paper_text: str, explanation_style: str):
         ]
         validate_required_fields(parsed_summary, required_fields)
 
+        # Post-process Eminem mode to ensure proper formatting
+        if explanation_style == "eminem":
+            parsed_summary = format_eminem_response(parsed_summary)
+
         logger.info(f"Successfully generated summary in {explanation_style} style")
-        return {"summary": cleaned_json_string, "parsed": parsed_summary}
+        return {"summary": json.dumps(parsed_summary), "parsed": parsed_summary}
 
     except Exception as e:
         logger.error(f"Error calling Gemini API: {e}")
         raise
+
+
+def format_eminem_response(summary):
+    """Post-process Eminem mode response to ensure proper rap formatting."""
+    import re
+    
+    def add_rap_formatting(text):
+        """Add line breaks and enhance rhyming structure using |||LINEBREAK||| separator."""
+        if not text:
+            return text
+            
+        # If the text already has our separator, keep it
+        if "|||LINEBREAK|||" in text:
+            return text
+            
+        # Split into sentences
+        sentences = re.split(r'[.!?]+', text)
+        formatted_lines = []
+        
+        for i, sentence in enumerate(sentences):
+            sentence = sentence.strip()
+            if not sentence:
+                continue
+                
+            # Add our separator after every 1-2 sentences
+            if i > 0 and i % 2 == 0:
+                formatted_lines.append("|||LINEBREAK|||")
+                
+            formatted_lines.append(sentence)
+            
+            # Add punctuation back
+            if i < len(sentences) - 1:
+                formatted_lines.append("!")
+                
+        result = " ".join(formatted_lines)
+        
+        # Ensure we have proper line breaks using our separator
+        if "|||LINEBREAK|||" not in result:
+            # Force line breaks every ~100 characters at sentence boundaries
+            words = result.split()
+            lines = []
+            current_line = []
+            char_count = 0
+            
+            for word in words:
+                current_line.append(word)
+                char_count += len(word) + 1
+                
+                if char_count > 80 and word.endswith(('!', '.', '?')):
+                    lines.append(" ".join(current_line))
+                    current_line = []
+                    char_count = 0
+                    
+            if current_line:
+                lines.append(" ".join(current_line))
+                
+            result = "|||LINEBREAK|||".join(lines)
+            
+        return result
+    
+    # Format each text field in the summary
+    for field in ["gist", "analogy", "experimental_details", "why_it_matters"]:
+        if field in summary:
+            summary[field] = add_rap_formatting(summary[field])
+    
+    # Format key findings
+    if "key_findings" in summary and isinstance(summary["key_findings"], list):
+        summary["key_findings"] = [add_rap_formatting(finding) for finding in summary["key_findings"]]
+    
+    # Format key terms definitions
+    if "key_terms" in summary and isinstance(summary["key_terms"], list):
+        for term in summary["key_terms"]:
+            if isinstance(term, dict) and "definition" in term:
+                term["definition"] = add_rap_formatting(term["definition"])
+    
+    return summary
 
 
 @app.route("/api/health", methods=["GET", "OPTIONS"])
@@ -335,15 +460,19 @@ def summarize():
 
         try:
             # Fetch paper from arXiv
+            logger.info(f"Fetching paper with ID: {arxiv_id}")
             paper = fetch_paper_from_arxiv(arxiv_id)
 
             # Download PDF
+            logger.info(f"Downloading PDF for paper: {paper.title}")
             pdf_path = download_paper_pdf(paper)
 
             # Extract text from PDF
+            logger.info(f"Extracting text from PDF: {pdf_path}")
             paper_text = extract_text_from_pdf(pdf_path)
 
             # Generate summary using AI
+            logger.info(f"Generating summary in {explanation_style} style")
             result = generate_paper_summary(paper_text, explanation_style)
 
             # Prepare response data
@@ -368,6 +497,17 @@ def summarize():
             response = jsonify(response_data)
             for key, value in rate_limit_headers.items():
                 response.headers[key] = value
+            return response
+
+        except ValueError as ve:
+            logger.error(f"Validation error: {ve}")
+            response = jsonify({"error": str(ve), "status_code": 400})
+            response.status_code = 400
+            return response
+        except Exception as e:
+            logger.error(f"Processing error: {e}", exc_info=True)
+            response = jsonify({"error": f"Processing failed: {str(e)}", "status_code": 500})
+            response.status_code = 500
             return response
 
         finally:

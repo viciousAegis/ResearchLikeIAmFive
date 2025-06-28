@@ -36,6 +36,8 @@ function App() {
     { value: 'harry-potter', label: '⚡ Professor McGonagall', shortLabel: 'a Wizard' },
     { value: 'brain-rot', label: '💀 Gen Alpha Sigma', shortLabel: 'a Gen Alpha kid' },
     { value: 'reddit', label: '👽 Ultimate Redditor', shortLabel: 'a Redditor' },
+    { value: 'christopher-nolan', label: '🎬 Christopher Nolan', shortLabel: 'in Inception' },
+    { value: 'eminem', label: '🎤 Eminem', shortLabel: 'a Rap God' },
     { value: 'shakespearean', label: '🎭 Shakespeare\'s Bard', shortLabel: 'from the Globe Theatre' }
   ];
 

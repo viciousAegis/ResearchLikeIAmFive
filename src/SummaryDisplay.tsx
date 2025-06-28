@@ -5,6 +5,28 @@ interface SummaryDisplayProps {
   data: ParsedAPIResponse | null;
 }
 
+// Component to handle newlines in text content
+function FormattedText({ children, className = "" }: { children: string; className?: string }) {
+  // Debug log to see what we're getting
+  console.log('FormattedText received:', children.substring(0, 200));
+  
+  const processedHTML = children
+    .replace(/\|\|\|LINEBREAK\|\|\|/g, '<br />')  // Handle our custom separator first
+    .replace(/\n/g, '<br />');  // Still handle regular newlines as fallback
+    
+  console.log('Processed HTML:', processedHTML.substring(0, 200));
+  
+  return (
+    <div 
+      className={className}
+      style={{ whiteSpace: 'pre-wrap' }}
+      dangerouslySetInnerHTML={{ 
+        __html: processedHTML
+      }}
+    />
+  );
+}
+
 function SummaryDisplay({ data }: SummaryDisplayProps) {
   if (!data) return null;
 
@@ -40,9 +62,9 @@ function SummaryDisplay({ data }: SummaryDisplayProps) {
                 {" "}Essence
               </span>
             </h2>
-            <p className="text-2xl text-gray-700 leading-relaxed max-w-4xl mx-auto">
+            <FormattedText className="text-2xl text-gray-700 leading-relaxed max-w-4xl mx-auto">
               {gist}
-            </p>
+            </FormattedText>
           </div>
         </div>
 
@@ -62,9 +84,9 @@ function SummaryDisplay({ data }: SummaryDisplayProps) {
                 <div className="w-20 h-20 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-8">
                   <span className="text-3xl">💡</span>
                 </div>
-                <p className="text-xl text-gray-700 leading-relaxed">
+                <FormattedText className="text-xl text-gray-700 leading-relaxed">
                   {analogy}
-                </p>
+                </FormattedText>
               </div>
             </div>
           </div>
@@ -97,9 +119,9 @@ function SummaryDisplay({ data }: SummaryDisplayProps) {
                       <span className="text-white font-bold">{index + 1}</span>
                     </div>
                   </div>
-                  <p className="text-lg text-gray-700 leading-relaxed">
+                  <FormattedText className="text-lg text-gray-700 leading-relaxed">
                     {finding}
-                  </p>
+                  </FormattedText>
                 </div>
               ))}
             </div>
@@ -122,9 +144,9 @@ function SummaryDisplay({ data }: SummaryDisplayProps) {
                 <div className="w-20 h-20 bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl flex items-center justify-center flex-shrink-0">
                   <span className="text-3xl">🌍</span>
                 </div>
-                <p className="text-xl text-gray-700 leading-relaxed">
+                <FormattedText className="text-xl text-gray-700 leading-relaxed">
                   {why_it_matters}
-                </p>
+                </FormattedText>
               </div>
             </div>
           </div>
@@ -157,9 +179,9 @@ function SummaryDisplay({ data }: SummaryDisplayProps) {
                       {item.term}
                     </h3>
                   </div>
-                  <p className="text-lg text-gray-700 leading-relaxed">
+                  <FormattedText className="text-lg text-gray-700 leading-relaxed">
                     {item.definition}
-                  </p>
+                  </FormattedText>
                 </div>
               ))}
             </div>

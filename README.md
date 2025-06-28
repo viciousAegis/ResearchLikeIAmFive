@@ -1,6 +1,9 @@
 # 🧠 Research Like I'm Five
 
-*"If you can't explain it simply, you don't understand it well enough."* — Albert Einstein
+*"If you can't explain it simply, you don't ### 🎨 **14 Un| 🔴 **Reddit** | Classic Reddit commentary and memes | Reddit users |
+| 🎬 **Christopher Nolan** | Non-linear explanations with plot twists | Film enthusiasts |
+| 🎤 **Eminem** | Rapid-fire rap explanations with wordplay | Hip-hop fans |
+| 🎭 **Shakespearean** | Elizabethan English, iambic pentameter | Literature enthusiasts |e Explanation Styles**nderstand it well enough."* — Albert Einstein
 
 Transform complex research p## 📱 How to Use
 
@@ -86,7 +89,8 @@ Choose how you want complex research explained:
 | ⚡ **Harry Potter** | Hogwarts-style magical explanations | Fantasy lovers |
 | 💀 **Brain Rot** | Peak Gen Alpha humor with maximum rizz | Meme connoisseurs |
 | 🔴 **Reddit** | Classic Reddit commentary and memes | Reddit users |
-| 🎭 **Shakespearean** | Elizabethan English, iambic pentameter | Literature enthusiasts |
+| � **Christopher Nolan** | Non-linear explanations with plot twists | Film enthusiasts |
+| �🎭 **Shakespearean** | Elizabethan English, iambic pentameter | Literature enthusiasts |
 
 ### 🧠 **AI-Powered Analysis**
 - **One-Line Gist**: The entire paper in one compelling sentence
